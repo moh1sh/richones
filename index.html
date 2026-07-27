@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RichOnes</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="RichOnes">
+<meta name="theme-color" content="#4361ee">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" width="17" height="17">
+          <circle cx="12" cy="12" r="7.5" fill="#ffffff"/>
+          <path d="M8.3 13.6 12 9.2l3.7 4.4" stroke="#4361ee" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="9.2" r="1.15" fill="#4361ee"/>
+        </svg>
+      </span>
+      RichOnes
+    </div>
+  </header>
+
+  <!-- ===================== EXPENSE TRACKER (HOME) ===================== -->
+  <main id="view-expenses" class="view active">
+
+    <section class="panel home-summary">
+      <div class="home-month-label">This month</div>
+      <div class="home-month-total" id="exp-month-total">₹0</div>
+      <div class="donut-panel compact">
+        <div id="donut-chart" class="donut-wrap"></div>
+        <div id="donut-legend" class="legend"></div>
+      </div>
+      <div class="mini-trend-row">
+        <div class="mini-trend-label">Last 7 days</div>
+        <div id="mini-trend" class="mini-trend-chart"></div>
+      </div>
+    </section>
+
+    <section class="panel quick-add-panel">
+      <h2>Add expense</h2>
+      <form id="expense-form">
+        <div class="category-grid" id="category-grid"></div>
+        <div class="amount-input-wrap">
+          <span class="currency">₹</span>
+          <input type="number" id="exp-amount" class="amount-input" inputmode="numeric" step="1" min="1" placeholder="0" required autofocus>
+        </div>
+        <input type="text" id="exp-note" class="note-input" placeholder="Add a note (optional)">
+        <button type="submit" class="btn-primary btn-confirm" id="key-confirm" disabled>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>
+          Add expense
+        </button>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- ===================== LEDGER ===================== -->
+  <main id="view-ledger" class="view">
+
+    <section class="cards">
+      <div class="card">
+        <div class="card-label">Income (this month)</div>
+        <div class="card-value positive" id="ledger-income-month">₹0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">EMI outgo (this month)</div>
+        <div class="card-value negative" id="ledger-emi-month">₹0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Net (this month)</div>
+        <div class="card-value" id="ledger-net-month">₹0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">You are owed</div>
+        <div class="card-value positive" id="net-owed-to-me">₹0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">You owe</div>
+        <div class="card-value negative" id="net-i-owe">₹0</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Monthly status</h2>
+      <p class="hint">Recurring income and loan EMIs post automatically the next time you open this page on or after their due date.</p>
+      <div class="table-scroll">
+        <table class="data-table" id="status-table">
+          <thead><tr><th>Month</th><th class="num">Income</th><th class="num">EMI outgo</th><th class="num">Net</th></tr></thead>
+          <tbody id="status-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="status-empty">No monthly activity yet.</div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <button type="button" class="section-toggle" data-target="income-form-wrap">
+          <span class="section-toggle-icon">+</span>
+          <span>Add income</span>
+        </button>
+        <div id="income-form-wrap" class="collapsible" hidden>
+          <form id="income-form" class="form">
+            <div class="form-row">
+              <label>Date</label>
+              <input type="date" id="inc-date" required>
+            </div>
+            <div class="form-row">
+              <label>Type</label>
+              <select id="inc-type">
+                <option value="salary">Salary</option>
+                <option value="interest">Interest</option>
+                <option value="business">Business</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Amount</label>
+              <input type="number" id="inc-amount" step="1" min="0" placeholder="0" required>
+            </div>
+            <div class="form-row">
+              <label>Note</label>
+              <input type="text" id="inc-note" placeholder="optional">
+            </div>
+            <button type="submit" class="btn-primary">Add income</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="panel">
+        <button type="button" class="section-toggle" data-target="ledger-form-wrap">
+          <span class="section-toggle-icon">+</span>
+          <span>Add loan entry</span>
+        </button>
+        <div id="ledger-form-wrap" class="collapsible" hidden>
+          <form id="ledger-form" class="form">
+            <div class="form-row">
+              <label>Person</label>
+              <input type="text" id="ldg-person" list="people-list" placeholder="e.g. HJ, Palak" required>
+              <datalist id="people-list"></datalist>
+            </div>
+            <div class="form-row">
+              <label>Date</label>
+              <input type="date" id="ldg-date" required>
+            </div>
+            <div class="form-row">
+              <label>Direction</label>
+              <select id="ldg-direction">
+                <option value="i_paid">I paid them (they owe me)</option>
+                <option value="i_owe">They paid me / I owe them</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Amount</label>
+              <input type="number" id="ldg-amount" step="1" min="0" placeholder="0" required>
+            </div>
+            <div class="form-row">
+              <label>Note</label>
+              <input type="text" id="ldg-note" placeholder="optional">
+            </div>
+            <button type="submit" class="btn-primary">Add entry</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Balances by person</h2>
+      <div id="balances-list" class="balances-list"></div>
+      <div class="empty-state" id="balances-empty">No loan entries yet.</div>
+    </section>
+
+    <section class="grid-2">
+      <div class="panel">
+        <h2>Income history</h2>
+        <div class="table-scroll">
+          <table class="data-table" id="income-table">
+            <thead><tr><th>Date</th><th>Type</th><th>Note</th><th class="num">Amount</th><th></th></tr></thead>
+            <tbody id="income-tbody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="income-empty">No income entries yet.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Loan history</h2>
+        <div class="table-scroll">
+          <table class="data-table" id="ledger-table">
+            <thead><tr><th>Date</th><th>Person</th><th>Note</th><th class="num">Amount</th><th></th></tr></thead>
+            <tbody id="ledger-tbody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="ledger-empty">No loan entries yet.</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Recurring items</h2>
+      <p class="hint">Salary, interest, business income, and loan EMIs that repeat every month.</p>
+      <button type="button" class="section-toggle" data-target="recurring-form-wrap">
+        <span class="section-toggle-icon">+</span>
+        <span>Add recurring item</span>
+      </button>
+      <div id="recurring-form-wrap" class="collapsible" hidden>
+        <form id="recurring-form" class="form form-inline">
+          <div class="form-row">
+            <label>Name</label>
+            <input type="text" id="rec-name" placeholder="e.g. Home Loan EMI" required>
+          </div>
+          <div class="form-row">
+            <label>Kind</label>
+            <select id="rec-kind">
+              <option value="income">Income</option>
+              <option value="emi">EMI / Loan payment</option>
+            </select>
+          </div>
+          <div class="form-row" id="rec-subtype-row">
+            <label>Type</label>
+            <select id="rec-subtype">
+              <option value="salary">Salary</option>
+              <option value="interest">Interest</option>
+              <option value="business">Business</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Amount</label>
+            <input type="number" id="rec-amount" step="1" min="0" placeholder="0" required>
+          </div>
+          <div class="form-row">
+            <label>Posts on</label>
+            <select id="rec-day">
+              <option value="start">Start of month</option>
+              <option value="end">End of month</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Starting</label>
+            <input type="month" id="rec-start-month" required>
+          </div>
+          <button type="submit" class="btn-primary">Add recurring item</button>
+        </form>
+      </div>
+      <div id="recurring-list" class="balances-list recurring-list"></div>
+      <div class="empty-state" id="recurring-empty">No recurring items yet.</div>
+    </section>
+
+    <section class="panel">
+      <h2>EMI / loan payment history</h2>
+      <div class="table-scroll">
+        <table class="data-table" id="emi-table">
+          <thead><tr><th>Date</th><th>Loan</th><th class="num">Amount</th></tr></thead>
+          <tbody id="emi-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="emi-empty">No EMI payments posted yet.</div>
+    </section>
+
+  </main>
+
+  <!-- ===================== REPORTS ===================== -->
+  <main id="view-reports" class="view">
+
+    <section class="cards">
+      <div class="card">
+        <div class="card-label">Last 30 days</div>
+        <div class="card-value" id="exp-30d-total">₹0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">All time</div>
+        <div class="card-value" id="exp-all-total">₹0</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Top category</div>
+        <div class="card-value" id="exp-top-category">—</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Last 14 days</h2>
+      <div id="trend-chart" class="trend-chart"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Recent expenses</h2>
+      <div class="table-scroll">
+        <table class="data-table" id="expense-table">
+          <thead>
+            <tr><th>Date</th><th>Category</th><th>Note</th><th class="num">Amount</th><th></th></tr>
+          </thead>
+          <tbody id="expense-tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="expense-empty">No expenses yet. Add your first one on the Expenses tab.</div>
+    </section>
+
+    <section class="panel">
+      <h2>Backup &amp; transfer</h2>
+      <p class="hint">Move your data to another device (like your phone) or back it up somewhere safe. Nothing is uploaded — the file is generated and read entirely on this device.</p>
+      <div class="export-import-row">
+        <button type="button" class="btn-secondary" id="export-btn">Export data</button>
+        <label class="btn-secondary" for="import-file">Import data</label>
+        <input type="file" id="import-file" accept="application/json" hidden>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-view="expenses">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 9h18"/><path d="M15 12.5h4"/><circle cx="17" cy="12.5" r="0.9" fill="currentColor" stroke="none"/></svg>
+      <span>Expenses</span>
+    </button>
+    <button class="nav-item" data-view="ledger">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 10 12 4l9.5 6"/><path d="M4 21V10M9 21V10M15 21V10M20 21V10"/><path d="M3 21h18"/></svg>
+      <span>Ledger</span>
+    </button>
+    <button class="nav-item" data-view="reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg>
+      <span>Reports</span>
+    </button>
+  </nav>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
