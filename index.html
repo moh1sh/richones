@@ -93,12 +93,7 @@
     <section class="panel">
       <h2>Monthly status</h2>
       <p class="hint">Recurring income and loan EMIs post automatically the next time you open this page on or after their due date.</p>
-      <div class="table-scroll">
-        <table class="data-table" id="status-table">
-          <thead><tr><th>Month</th><th class="num">Income</th><th class="num">EMI outgo</th><th class="num">Net</th></tr></thead>
-          <tbody id="status-tbody"></tbody>
-        </table>
-      </div>
+      <div class="month-list" id="status-tbody"></div>
       <div class="empty-state" id="status-empty">No monthly activity yet.</div>
     </section>
 
@@ -182,23 +177,13 @@
     <section class="grid-2">
       <div class="panel">
         <h2>Income history</h2>
-        <div class="table-scroll">
-          <table class="data-table" id="income-table">
-            <thead><tr><th>Date</th><th>Type</th><th>Note</th><th class="num">Amount</th><th></th></tr></thead>
-            <tbody id="income-tbody"></tbody>
-          </table>
-        </div>
+        <div class="txn-list" id="income-tbody"></div>
         <div class="empty-state" id="income-empty">No income entries yet.</div>
       </div>
 
       <div class="panel">
         <h2>Loan history</h2>
-        <div class="table-scroll">
-          <table class="data-table" id="ledger-table">
-            <thead><tr><th>Date</th><th>Person</th><th>Note</th><th class="num">Amount</th><th></th></tr></thead>
-            <tbody id="ledger-tbody"></tbody>
-          </table>
-        </div>
+        <div class="txn-list" id="ledger-tbody"></div>
         <div class="empty-state" id="ledger-empty">No loan entries yet.</div>
       </div>
     </section>
@@ -256,12 +241,7 @@
 
     <section class="panel">
       <h2>EMI / loan payment history</h2>
-      <div class="table-scroll">
-        <table class="data-table" id="emi-table">
-          <thead><tr><th>Date</th><th>Loan</th><th class="num">Amount</th></tr></thead>
-          <tbody id="emi-tbody"></tbody>
-        </table>
-      </div>
+      <div class="txn-list" id="emi-tbody"></div>
       <div class="empty-state" id="emi-empty">No EMI payments posted yet.</div>
     </section>
 
@@ -292,14 +272,7 @@
 
     <section class="panel">
       <h2>Recent expenses</h2>
-      <div class="table-scroll">
-        <table class="data-table" id="expense-table">
-          <thead>
-            <tr><th>Date</th><th>Category</th><th>Note</th><th class="num">Amount</th><th></th></tr>
-          </thead>
-          <tbody id="expense-tbody"></tbody>
-        </table>
-      </div>
+      <div class="txn-list" id="expense-tbody"></div>
       <div class="empty-state" id="expense-empty">No expenses yet. Add your first one on the Expenses tab.</div>
     </section>
 

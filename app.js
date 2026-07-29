@@ -396,22 +396,26 @@ function renderExpenses() {
   renderMiniTrend(expenses);
   renderTrend(expenses);
 
-  const tbody = document.getElementById("expense-tbody");
-  tbody.innerHTML = "";
+  const list = document.getElementById("expense-tbody");
+  list.innerHTML = "";
   document.getElementById("expense-empty").style.display = expenses.length ? "none" : "block";
 
   expenses.slice(0, 50).forEach((x) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${x.date}</td>
-      <td>${x.category}</td>
-      <td>${x.note || ""}</td>
-      <td class="num">${fmtMoney(x.amount)}</td>
-      <td><button class="row-delete" data-id="${x.id}">Delete</button></td>
+    const color = CATEGORY_COLORS[x.category] || FALLBACK_COLOR;
+    const row = document.createElement("div");
+    row.className = "txn-row";
+    row.innerHTML = `
+      <span class="txn-dot" style="background:${color}"></span>
+      <div class="txn-main">
+        <div class="txn-title">${x.category}</div>
+        <div class="txn-sub">${x.note ? x.note + " · " : ""}${x.date}</div>
+      </div>
+      <div class="txn-amount negative">${fmtMoney(x.amount)}</div>
+      <button class="txn-delete" data-id="${x.id}" aria-label="Delete">×</button>
     `;
-    tbody.appendChild(tr);
+    list.appendChild(row);
   });
-  tbody.querySelectorAll(".row-delete").forEach((btn) => {
+  list.querySelectorAll(".txn-delete").forEach((btn) => {
     btn.addEventListener("click", () => deleteExpense(btn.dataset.id));
   });
 }
@@ -448,22 +452,25 @@ function deleteIncome(id) {
 function renderIncome() {
   const income = [...store.income].sort((a, b) => b.date.localeCompare(a.date));
 
-  const tbody = document.getElementById("income-tbody");
-  tbody.innerHTML = "";
+  const list = document.getElementById("income-tbody");
+  list.innerHTML = "";
   document.getElementById("income-empty").style.display = income.length ? "none" : "block";
 
   income.slice(0, 50).forEach((x) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${x.date}</td>
-      <td>${x.type}</td>
-      <td>${x.note || ""}</td>
-      <td class="num">${fmtMoney(x.amount)}</td>
-      <td><button class="row-delete" data-id="${x.id}">Delete</button></td>
+    const row = document.createElement("div");
+    row.className = "txn-row";
+    row.innerHTML = `
+      <span class="txn-dot" style="background:var(--positive)"></span>
+      <div class="txn-main">
+        <div class="txn-title">${x.type}</div>
+        <div class="txn-sub">${x.note ? x.note + " · " : ""}${x.date}</div>
+      </div>
+      <div class="txn-amount positive">${fmtMoney(x.amount)}</div>
+      <button class="txn-delete" data-id="${x.id}" aria-label="Delete">×</button>
     `;
-    tbody.appendChild(tr);
+    list.appendChild(row);
   });
-  tbody.querySelectorAll(".row-delete").forEach((btn) => {
+  list.querySelectorAll(".txn-delete").forEach((btn) => {
     btn.addEventListener("click", () => deleteIncome(btn.dataset.id));
   });
 }
@@ -539,23 +546,27 @@ function renderLedger() {
     balancesList.appendChild(row);
   });
 
-  const tbody = document.getElementById("ledger-tbody");
-  tbody.innerHTML = "";
+  const list = document.getElementById("ledger-tbody");
+  list.innerHTML = "";
   document.getElementById("ledger-empty").style.display = entries.length ? "none" : "block";
 
   entries.slice(0, 50).forEach((x) => {
     const signed = x.direction === "i_paid" ? x.amount : -x.amount;
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${x.date}</td>
-      <td>${x.person}</td>
-      <td>${x.note || ""}</td>
-      <td class="num" style="color:${signed >= 0 ? "var(--positive)" : "var(--negative)"}">${signed >= 0 ? "+" : ""}${fmtMoney(signed)}</td>
-      <td><button class="row-delete" data-id="${x.id}">Delete</button></td>
+    const cls = signed >= 0 ? "positive" : "negative";
+    const row = document.createElement("div");
+    row.className = "txn-row";
+    row.innerHTML = `
+      <span class="txn-dot" style="background:var(--${cls === "positive" ? "positive" : "negative"})"></span>
+      <div class="txn-main">
+        <div class="txn-title">${x.person}</div>
+        <div class="txn-sub">${x.note ? x.note + " · " : ""}${x.date}</div>
+      </div>
+      <div class="txn-amount ${cls}">${signed >= 0 ? "+" : ""}${fmtMoney(signed)}</div>
+      <button class="txn-delete" data-id="${x.id}" aria-label="Delete">×</button>
     `;
-    tbody.appendChild(tr);
+    list.appendChild(row);
   });
-  tbody.querySelectorAll(".row-delete").forEach((btn) => {
+  list.querySelectorAll(".txn-delete").forEach((btn) => {
     btn.addEventListener("click", () => deleteLedgerEntry(btn.dataset.id));
   });
 }
@@ -583,8 +594,8 @@ function renderStatus() {
   ]);
   const sorted = [...periods].sort().reverse().slice(0, 12);
 
-  const tbody = document.getElementById("status-tbody");
-  tbody.innerHTML = "";
+  const list = document.getElementById("status-tbody");
+  list.innerHTML = "";
   document.getElementById("status-empty").style.display = sorted.length ? "none" : "block";
 
   sorted.forEach((period) => {
@@ -592,14 +603,27 @@ function renderStatus() {
     const emi = store.emiPayments.filter((x) => periodOf(x.date) === period).reduce((s, x) => s + x.amount, 0);
     const net = inc - emi;
     const label = new Date(period + "-01").toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${label}</td>
-      <td class="num">${fmtMoney(inc)}</td>
-      <td class="num">${fmtMoney(emi)}</td>
-      <td class="num" style="color:${net >= 0 ? "var(--positive)" : "var(--negative)"}">${fmtMoney(net)}</td>
+    const netCls = net >= 0 ? "positive" : "negative";
+    const row = document.createElement("div");
+    row.className = "month-row";
+    row.innerHTML = `
+      <div class="month-row-title">${label}</div>
+      <div class="month-row-stats">
+        <div class="month-stat">
+          <div class="month-stat-label">Income</div>
+          <div class="month-stat-value positive">${fmtMoney(inc)}</div>
+        </div>
+        <div class="month-stat">
+          <div class="month-stat-label">EMI outgo</div>
+          <div class="month-stat-value negative">${fmtMoney(emi)}</div>
+        </div>
+        <div class="month-stat">
+          <div class="month-stat-label">Net</div>
+          <div class="month-stat-value ${netCls}">${fmtMoney(net)}</div>
+        </div>
+      </div>
     `;
-    tbody.appendChild(tr);
+    list.appendChild(row);
   });
 }
 
@@ -668,18 +692,22 @@ function renderRecurring() {
 
 function renderEmiHistory() {
   const payments = [...store.emiPayments].sort((a, b) => b.date.localeCompare(a.date));
-  const tbody = document.getElementById("emi-tbody");
-  tbody.innerHTML = "";
+  const list = document.getElementById("emi-tbody");
+  list.innerHTML = "";
   document.getElementById("emi-empty").style.display = payments.length ? "none" : "block";
 
   payments.slice(0, 50).forEach((x) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${x.date}</td>
-      <td>${x.name}</td>
-      <td class="num">${fmtMoney(x.amount)}</td>
+    const row = document.createElement("div");
+    row.className = "txn-row";
+    row.innerHTML = `
+      <span class="txn-dot" style="background:var(--negative)"></span>
+      <div class="txn-main">
+        <div class="txn-title">${x.name}</div>
+        <div class="txn-sub">${x.date}</div>
+      </div>
+      <div class="txn-amount negative">${fmtMoney(x.amount)}</div>
     `;
-    tbody.appendChild(tr);
+    list.appendChild(row);
   });
 }
 
