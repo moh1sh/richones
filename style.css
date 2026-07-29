@@ -141,6 +141,43 @@ body {
 .card-value.positive { color: var(--positive); }
 .card-value.negative { color: var(--negative); }
 
+.balance-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.balance-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.balance-summary-row:not(:last-child) {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.balance-summary-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.balance-summary-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.balance-summary-value.positive { color: var(--positive); }
+.balance-summary-value.negative { color: var(--negative); }
+
 .grid-2 {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
