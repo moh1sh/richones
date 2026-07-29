@@ -364,9 +364,9 @@ body {
 }
 
 .amount-input-wrap .currency {
-  color: var(--text-dim);
-  font-size: 18px;
-  font-weight: 700;
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 800;
 }
 
 .amount-input {
