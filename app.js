@@ -5,7 +5,7 @@ const STORE_KEY = "finance-dashboard-v1";
 function loadStore() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return { expenses: [], income: [], ledger: [], recurring: [], emiPayments: [] };
+    if (!raw) return { expenses: [], income: [], ledger: [], recurring: [], emiPayments: [], customCategoryColors: {} };
     const parsed = JSON.parse(raw);
     return {
       expenses: parsed.expenses || [],
@@ -13,10 +13,11 @@ function loadStore() {
       ledger: parsed.ledger || [],
       recurring: parsed.recurring || [],
       emiPayments: parsed.emiPayments || [],
+      customCategoryColors: parsed.customCategoryColors || {},
     };
   } catch (e) {
     console.error("Failed to load store, starting fresh", e);
-    return { expenses: [], income: [], ledger: [], recurring: [], emiPayments: [] };
+    return { expenses: [], income: [], ledger: [], recurring: [], emiPayments: [], customCategoryColors: {} };
   }
 }
 
@@ -185,6 +186,34 @@ const CATEGORY_COLORS = {
 };
 const FALLBACK_COLOR = "#9ca3af";
 
+// Categories offered in the quick-add tile picker. Kept fixed and small on
+// purpose so the Home screen stays fast and scroll-free, regardless of how
+// many extra categories come in through CSV imports.
+const CURATED_CATEGORIES = Object.keys(CATEGORY_COLORS);
+
+// Colors auto-assigned to categories discovered via CSV import that don't
+// match any curated category (e.g. "Uncategorized", or an unmapped label).
+const AUTO_PALETTE = ["#0ea5e9", "#84cc16", "#f59e0b", "#8b5cf6", "#14b8a6", "#f43f5e", "#6366f1"];
+
+function ensureCategoryColor(cat) {
+  if (CATEGORY_COLORS[cat]) return;
+  const existing = store.customCategoryColors[cat];
+  if (existing) {
+    CATEGORY_COLORS[cat] = existing;
+    return;
+  }
+  const usedCount = Object.keys(store.customCategoryColors).length;
+  const color = AUTO_PALETTE[usedCount % AUTO_PALETTE.length];
+  CATEGORY_COLORS[cat] = color;
+  store.customCategoryColors[cat] = color;
+}
+
+function applyCustomCategoryColors() {
+  Object.entries(store.customCategoryColors || {}).forEach(([cat, color]) => {
+    CATEGORY_COLORS[cat] = color;
+  });
+}
+
 const CATEGORY_ICONS = {
   Food: '<path d="M7 2v8M7 2c-1.5 0-2 1-2 2v4c0 1 .5 2 2 2M7 10v12M17 2v20M17 2c-2 0-3 1.5-3 4s1 4 3 4" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>',
   Utilities: '<path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>',
@@ -294,11 +323,11 @@ function renderTrend(expenses) {
 
 // ---------- expenses: category grid + quick add ----------
 
-let quickCategory = Object.keys(CATEGORY_COLORS)[0];
+let quickCategory = CURATED_CATEGORIES[0];
 
 function renderCategoryGrid() {
   const grid = document.getElementById("category-grid");
-  grid.innerHTML = Object.keys(CATEGORY_COLORS).map((cat) => {
+  grid.innerHTML = CURATED_CATEGORIES.map((cat) => {
     const color = CATEGORY_COLORS[cat];
     const selected = cat === quickCategory;
     return `<button type="button" class="category-tile${selected ? " selected" : ""}" data-cat="${cat}">
@@ -695,9 +724,135 @@ document.getElementById("import-file").addEventListener("change", (e) => {
       ledger: imported.ledger || [],
       recurring: imported.recurring || [],
       emiPayments: imported.emiPayments || [],
+      customCategoryColors: imported.customCategoryColors || {},
     };
     saveStore();
+    applyCustomCategoryColors();
     runRecurringEngine();
+    renderAll();
+    e.target.value = "";
+  };
+  reader.readAsText(file);
+});
+
+// ---------- CSV import (historical data from other apps) ----------
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field);
+      field = "";
+      if (row.length > 1 || row[0] !== "") rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  if (field !== "" || row.length) {
+    row.push(field);
+    if (row.length > 1 || row[0] !== "") rows.push(row);
+  }
+  return rows;
+}
+
+const CSV_CATEGORY_RULES = [
+  { match: /food|dining|restaurant|grocer/i, category: "Food" },
+  { match: /car|fuel|petrol|diesel|transport|taxi|\buber\b|\bola\b|parking/i, category: "Transport" },
+  { match: /famil|personal|shopping|cloth/i, category: "Personal" },
+  { match: /health|medical|doctor|pharmac|gym|fitness/i, category: "Health" },
+  { match: /utilit|bill|electric|water|internet|recharge|phone/i, category: "Utilities" },
+  { match: /habit|subscription|hobby/i, category: "Habits" },
+  { match: /credit card/i, category: "Credit Card" },
+];
+
+function mapCsvCategory(raw) {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return "Uncategorized";
+  for (const rule of CSV_CATEGORY_RULES) {
+    if (rule.match.test(trimmed)) return rule.category;
+  }
+  return trimmed;
+}
+
+document.getElementById("csv-file").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    let rows = parseCSV(reader.result).filter((r) => r.length >= 5 && r[0]);
+    if (rows.length && isNaN(Date.parse(rows[0][0]))) rows = rows.slice(1);
+
+    const newExpenses = [];
+    const newIncome = [];
+    const categoryCounts = {};
+    let minDate = null, maxDate = null;
+
+    rows.forEach((r) => {
+      const d = new Date(r[0]);
+      if (isNaN(d.getTime())) return;
+      const dateStr = d.toISOString().slice(0, 10);
+      const rawAmount = parseFloat(r[4]);
+      const amount = Math.round(Math.abs(rawAmount || 0));
+      if (!amount) return;
+      const note = (r[6] || "").trim();
+
+      if (!minDate || dateStr < minDate) minDate = dateStr;
+      if (!maxDate || dateStr > maxDate) maxDate = dateStr;
+
+      if (rawAmount > 0) {
+        newIncome.push({ id: uid(), date: dateStr, type: "other", amount, note: note || "Imported" });
+      } else {
+        const category = mapCsvCategory(r[3]);
+        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
+        newExpenses.push({ id: uid(), date: dateStr, amount, category, note });
+      }
+    });
+
+    if (!newExpenses.length && !newIncome.length) {
+      alert("Couldn't find any valid rows in that file.");
+      e.target.value = "";
+      return;
+    }
+
+    const summary = Object.entries(categoryCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([cat, count]) => `  ${cat}: ${count}`)
+      .join("\n");
+
+    const confirmed = confirm(
+      `Import ${newExpenses.length} expenses and ${newIncome.length} income entries?\n` +
+      `Date range: ${minDate} to ${maxDate}\n\n` +
+      `Categories:\n${summary}\n\n` +
+      `This adds to your existing data — it won't replace anything.`
+    );
+    if (!confirmed) {
+      e.target.value = "";
+      return;
+    }
+
+    newExpenses.forEach((x) => {
+      ensureCategoryColor(x.category);
+      store.expenses.push(x);
+    });
+    newIncome.forEach((x) => store.income.push(x));
+    saveStore();
     renderAll();
     e.target.value = "";
   };
@@ -716,5 +871,6 @@ function renderAll() {
   renderEmiHistory();
 }
 
+applyCustomCategoryColors();
 runRecurringEngine();
 renderAll();
