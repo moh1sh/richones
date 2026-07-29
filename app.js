@@ -577,7 +577,7 @@ function renderStatus() {
   const emiEl = document.getElementById("ledger-emi-month");
   const netEl = document.getElementById("ledger-net-month");
 
-  const cashBalance = store.income.filter((x) => x.type === "interest").reduce((s, x) => s + x.amount, 0);
+  const cashBalance = store.income.filter((x) => !x.recurringId).reduce((s, x) => s + x.amount, 0);
   document.getElementById("cash-balance").textContent = fmtMoney(cashBalance);
 
   const incomeMonth = store.income.filter((x) => isThisMonth(x.date)).reduce((s, x) => s + x.amount, 0);
