@@ -428,12 +428,11 @@ document.getElementById("inc-date").value = todayStr();
 incomeForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const date = document.getElementById("inc-date").value;
-  const type = document.getElementById("inc-type").value;
   const amount = Math.round(parseFloat(document.getElementById("inc-amount").value));
   const note = document.getElementById("inc-note").value.trim();
   if (!date || isNaN(amount)) return;
 
-  store.income.push({ id: uid(), date, type, amount, note });
+  store.income.push({ id: uid(), date, type: "interest", amount, note });
   saveStore();
   incomeForm.reset();
   document.getElementById("inc-date").value = todayStr();
@@ -577,6 +576,9 @@ function renderStatus() {
   const income = document.getElementById("ledger-income-month");
   const emiEl = document.getElementById("ledger-emi-month");
   const netEl = document.getElementById("ledger-net-month");
+
+  const cashBalance = store.income.filter((x) => x.type === "interest").reduce((s, x) => s + x.amount, 0);
+  document.getElementById("cash-balance").textContent = fmtMoney(cashBalance);
 
   const incomeMonth = store.income.filter((x) => isThisMonth(x.date)).reduce((s, x) => s + x.amount, 0);
   const emiMonth = store.emiPayments.filter((x) => isThisMonth(x.date)).reduce((s, x) => s + x.amount, 0);
