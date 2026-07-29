@@ -130,10 +130,12 @@ body {
 }
 
 .card-value {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .card-value.positive { color: var(--positive); }
@@ -450,6 +452,8 @@ body {
   font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   margin-top: 2px;
   color: var(--accent);
 }
@@ -659,6 +663,8 @@ body {
   font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   margin-top: 2px;
 }
 
