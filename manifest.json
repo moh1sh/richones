@@ -1,6 +1,6 @@
 {
-  "name": "RichOnes",
-  "short_name": "RichOnes",
+  "name": "Expenser",
+  "short_name": "Expenser",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f4f5fa",

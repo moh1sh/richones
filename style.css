@@ -31,11 +31,43 @@ body {
 .topbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: calc(10px + env(safe-area-inset-top)) 0 10px;
   position: sticky;
   top: 0;
   background: var(--bg);
   z-index: 10;
+}
+
+.privacy-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.privacy-toggle.active {
+  color: var(--accent);
+  background: rgba(67,97,238,.1);
+  border-color: transparent;
+}
+
+.privacy-toggle:active { transform: scale(0.93); }
+
+.privacy-mode .card-value,
+.privacy-mode .balance-summary-value,
+.privacy-mode .home-month-total,
+.privacy-mode .month-stat-value,
+.privacy-mode .txn-amount {
+  filter: blur(7px);
+  user-select: none;
 }
 
 .brand {
@@ -539,6 +571,16 @@ body {
 
 .trend-chart svg { display: block; width: 100%; height: 120px; }
 
+.trend-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+}
+
 .form-inline {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -625,6 +667,25 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.txn-editable {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--panel-border);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.txn-edit-select {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 2px 4px;
+  max-width: 100%;
+  font-family: inherit;
 }
 
 .txn-sub {

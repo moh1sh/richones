@@ -37,6 +37,28 @@ function fmtMoney(n) {
   return sign + "₹" + Math.abs(rounded).toLocaleString("en-IN");
 }
 
+// Shrinks a value's font-size just enough to fit on one line, however many
+// digits it has, instead of the browser wrapping mid-number. Falls back to
+// CSS overflow-wrap only if it can't fit even at the minimum size.
+function fitValueText(el) {
+  el.style.fontSize = "";
+  const baseSize = parseFloat(getComputedStyle(el).fontSize);
+  const minSize = 12;
+  el.style.whiteSpace = "nowrap";
+  let size = baseSize;
+  while (el.scrollWidth > el.clientWidth + 1 && size > minSize) {
+    size -= 1;
+    el.style.fontSize = size + "px";
+  }
+  el.style.whiteSpace = "";
+}
+
+function fitAllValueText() {
+  document
+    .querySelectorAll(".card-value, .balance-summary-value, .home-month-total, .month-stat-value")
+    .forEach(fitValueText);
+}
+
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -278,6 +300,13 @@ function renderMiniTrend(expenses) {
     days.push({ date: dateStr, total, label: d.toLocaleDateString(undefined, { weekday: "narrow" }) });
   }
 
+  const windowTotal = days.reduce((s, d) => s + d.total, 0);
+  if (windowTotal === 0) {
+    document.getElementById("mini-trend").innerHTML =
+      '<div class="trend-empty">No expenses in the last 7 days</div>';
+    return;
+  }
+
   const w = 260, h = 42, gap = 6;
   const max = Math.max(1, ...days.map((d) => d.total));
   const barW = (w - gap * (days.length - 1)) / days.length;
@@ -303,6 +332,13 @@ function renderTrend(expenses) {
     const dateStr = d.toISOString().slice(0, 10);
     const total = expenses.filter((x) => x.date === dateStr).reduce((s, x) => s + x.amount, 0);
     days.push({ date: dateStr, total });
+  }
+
+  const windowTotal = days.reduce((s, d) => s + d.total, 0);
+  if (windowTotal === 0) {
+    document.getElementById("trend-chart").innerHTML =
+      '<div class="trend-empty">No expenses in the last 14 days</div>';
+    return;
   }
 
   const w = 500, h = 110, gap = 4;
@@ -407,7 +443,7 @@ function renderExpenses() {
     row.innerHTML = `
       <span class="txn-dot" style="background:${color}"></span>
       <div class="txn-main">
-        <div class="txn-title">${x.category}</div>
+        <div class="txn-title txn-editable" data-id="${x.id}" title="Tap to change category">${x.category}</div>
         <div class="txn-sub">${x.note ? x.note + " · " : ""}${x.date}</div>
       </div>
       <div class="txn-amount negative">${fmtMoney(x.amount)}</div>
@@ -418,6 +454,37 @@ function renderExpenses() {
   list.querySelectorAll(".txn-delete").forEach((btn) => {
     btn.addEventListener("click", () => deleteExpense(btn.dataset.id));
   });
+  list.querySelectorAll(".txn-editable").forEach((el) => {
+    el.addEventListener("click", () => openCategoryEditor(el));
+  });
+  fitAllValueText();
+}
+
+function openCategoryEditor(titleEl) {
+  const id = titleEl.dataset.id;
+  const expense = store.expenses.find((x) => x.id === id);
+  if (!expense) return;
+
+  const select = document.createElement("select");
+  select.className = "txn-edit-select";
+  Object.keys(CATEGORY_COLORS).forEach((cat) => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    if (cat === expense.category) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  const finish = () => renderExpenses();
+  select.addEventListener("change", () => {
+    expense.category = select.value;
+    saveStore();
+    renderAll();
+  });
+  select.addEventListener("blur", finish, { once: true });
+
+  titleEl.replaceWith(select);
+  select.focus();
 }
 
 // ---------- income ----------
@@ -627,6 +694,7 @@ function renderStatus() {
     `;
     list.appendChild(row);
   });
+  fitAllValueText();
 }
 
 // ---------- recurring items ----------
@@ -720,7 +788,7 @@ document.getElementById("export-btn").addEventListener("click", () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `richones-backup-${todayStr()}.json`;
+  a.download = `expenser-backup-${todayStr()}.json`;
   a.click();
   URL.revokeObjectURL(url);
 });
@@ -801,14 +869,17 @@ function parseCSV(text) {
   return rows;
 }
 
+// Order matters: more specific patterns must come before broader ones that
+// could match a substring of them (e.g. "Credit Card" contains "car", so
+// Credit Card must be checked before the Transport rule's bare "car").
 const CSV_CATEGORY_RULES = [
-  { match: /food|dining|restaurant|grocer/i, category: "Food" },
-  { match: /car|fuel|petrol|diesel|transport|taxi|\buber\b|\bola\b|parking/i, category: "Transport" },
-  { match: /famil|personal|shopping|cloth/i, category: "Personal" },
-  { match: /health|medical|doctor|pharmac|gym|fitness/i, category: "Health" },
-  { match: /utilit|bill|electric|water|internet|recharge|phone/i, category: "Utilities" },
-  { match: /habit|subscription|hobby/i, category: "Habits" },
   { match: /credit card/i, category: "Credit Card" },
+  { match: /\bfood\b|dining|restaurant|grocer/i, category: "Food" },
+  { match: /\bcar\b|fuel|petrol|diesel|transport|\btaxi\b|\buber\b|\bola\b|parking/i, category: "Transport" },
+  { match: /famil|personal|shopping|cloth/i, category: "Personal" },
+  { match: /health|medical|doctor|pharmac|\bgym\b|fitness/i, category: "Health" },
+  { match: /utilit|\bbill\b|electric|water|internet|recharge|phone/i, category: "Utilities" },
+  { match: /habit|subscription|hobby/i, category: "Habits" },
 ];
 
 function mapCsvCategory(raw) {
@@ -888,6 +959,29 @@ document.getElementById("csv-file").addEventListener("change", (e) => {
   };
   reader.readAsText(file);
 });
+
+// ---------- privacy toggle ----------
+
+const PRIVACY_KEY = "expenser-privacy-mode";
+
+const EYE_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c7 0 10.5 7 10.5 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.4 8.6 1.5 12 1.5 12S5 19 12 19a10.6 10.6 0 0 0 4.2-.9"/><path d="M9.5 9.8a3 3 0 0 0 4.2 4.2"/></svg>';
+
+const privacyToggle = document.getElementById("privacy-toggle");
+
+function setPrivacyMode(on) {
+  document.body.classList.toggle("privacy-mode", on);
+  privacyToggle.classList.toggle("active", on);
+  privacyToggle.innerHTML = on ? EYE_OFF_ICON : EYE_ICON;
+  privacyToggle.setAttribute("aria-label", on ? "Show amounts" : "Hide amounts");
+  localStorage.setItem(PRIVACY_KEY, on ? "1" : "0");
+}
+
+privacyToggle.addEventListener("click", () => {
+  setPrivacyMode(!document.body.classList.contains("privacy-mode"));
+});
+
+setPrivacyMode(localStorage.getItem(PRIVACY_KEY) === "1");
 
 // ---------- init ----------
 
