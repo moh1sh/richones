@@ -60,7 +60,8 @@
           <span class="currency">₹</span>
           <input type="number" id="exp-amount" class="amount-input" inputmode="numeric" step="1" min="1" placeholder="0" required autofocus>
         </div>
-        <input type="text" id="exp-note" class="note-input" placeholder="Add a note (optional)">
+        <input type="text" id="exp-note" class="note-input" placeholder="Add a note (optional)" list="note-history" autocomplete="off">
+        <datalist id="note-history"></datalist>
         <button type="submit" class="btn-primary btn-confirm" id="key-confirm" disabled>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>
           Add expense

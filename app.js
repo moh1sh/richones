@@ -388,6 +388,38 @@ expenseAmountInput.addEventListener("input", () => {
   expenseConfirmBtn.disabled = !(parseFloat(expenseAmountInput.value) > 0);
 });
 
+// ---------- note autocomplete + category memory ----------
+
+let noteHistoryMap = {};
+
+function updateNoteHistory(sortedDescExpenses) {
+  noteHistoryMap = {};
+  const seen = new Set();
+  const notes = [];
+  sortedDescExpenses.forEach((x) => {
+    const trimmed = (x.note || "").trim();
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (!(key in noteHistoryMap)) noteHistoryMap[key] = x.category;
+    if (!seen.has(key)) {
+      seen.add(key);
+      notes.push(trimmed);
+    }
+  });
+  document.getElementById("note-history").innerHTML =
+    notes.slice(0, 50).map((n) => `<option value="${n}"></option>`).join("");
+}
+
+document.getElementById("exp-note").addEventListener("input", (e) => {
+  const key = e.target.value.trim().toLowerCase();
+  if (!key) return;
+  const cat = noteHistoryMap[key];
+  if (cat && CURATED_CATEGORIES.includes(cat) && cat !== quickCategory) {
+    quickCategory = cat;
+    renderCategoryGrid();
+  }
+});
+
 expenseForm.addEventListener("submit", (e) => {
   e.preventDefault();
   const amount = Math.round(parseFloat(expenseAmountInput.value));
@@ -410,6 +442,7 @@ function deleteExpense(id) {
 
 function renderExpenses() {
   const expenses = [...store.expenses].sort((a, b) => b.date.localeCompare(a.date));
+  updateNoteHistory(expenses);
   const monthExpenses = expenses.filter((x) => isThisMonth(x.date));
 
   const monthTotal = monthExpenses.reduce((s, x) => s + x.amount, 0);
