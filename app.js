@@ -1203,6 +1203,10 @@ function mapCsvCategory(raw) {
 let pendingCsvExpenses = [];
 let pendingCsvIncome = [];
 
+function transactionSignature(date, amount, note) {
+  return `${date}|${amount}|${(note || "").trim().toLowerCase()}`;
+}
+
 document.getElementById("csv-file").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -1215,6 +1219,15 @@ document.getElementById("csv-file").addEventListener("change", (e) => {
     pendingCsvExpenses = [];
     pendingCsvIncome = [];
     let minDate = null, maxDate = null;
+    let duplicateCount = 0;
+
+    // Seed with signatures of everything already in the app, so re-importing
+    // the same file (or a file that overlaps with entries already added by
+    // hand) doesn't create duplicates. Also catches duplicate rows within
+    // the file itself.
+    const seen = new Set();
+    store.expenses.forEach((x) => seen.add(transactionSignature(x.date, x.amount, x.note)));
+    store.income.forEach((x) => seen.add(transactionSignature(x.date, x.amount, x.note)));
 
     rows.forEach((r) => {
       const d = new Date(r[0]);
@@ -1224,6 +1237,13 @@ document.getElementById("csv-file").addEventListener("change", (e) => {
       const amount = Math.round(Math.abs(rawAmount || 0));
       if (!amount) return;
       const note = (r[6] || "").trim();
+
+      const sig = transactionSignature(dateStr, amount, note);
+      if (seen.has(sig)) {
+        duplicateCount++;
+        return;
+      }
+      seen.add(sig);
 
       if (!minDate || dateStr < minDate) minDate = dateStr;
       if (!maxDate || dateStr > maxDate) maxDate = dateStr;
@@ -1237,17 +1257,19 @@ document.getElementById("csv-file").addEventListener("change", (e) => {
     });
 
     if (!pendingCsvExpenses.length && !pendingCsvIncome.length) {
-      alert("Couldn't find any valid rows in that file.");
+      alert(duplicateCount
+        ? `All ${duplicateCount} rows in that file already match entries you have — nothing new to import.`
+        : "Couldn't find any valid rows in that file.");
       e.target.value = "";
       return;
     }
 
-    renderCsvReview(minDate, maxDate);
+    renderCsvReview(minDate, maxDate, duplicateCount);
   };
   reader.readAsText(file);
 });
 
-function renderCsvReview(minDate, maxDate) {
+function renderCsvReview(minDate, maxDate, duplicateCount) {
   const groups = {};
   pendingCsvExpenses.forEach((x) => {
     const key = x.rawCategory || "(blank)";
@@ -1255,8 +1277,11 @@ function renderCsvReview(minDate, maxDate) {
     groups[key].count++;
   });
 
+  const dupNote = duplicateCount
+    ? ` · ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"} skipped (already in your data)`
+    : "";
   document.getElementById("csv-review-summary").textContent =
-    `${pendingCsvExpenses.length} expenses, ${pendingCsvIncome.length} income entries · ${minDate} to ${maxDate}`;
+    `${pendingCsvExpenses.length} expenses, ${pendingCsvIncome.length} income entries · ${minDate} to ${maxDate}${dupNote}`;
 
   const allCategoryOptions = [...new Set([...CURATED_CATEGORIES, "Uncategorized", ...Object.values(groups).map((g) => g.suggested)])];
 
