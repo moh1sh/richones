@@ -891,6 +891,9 @@ function mapCsvCategory(raw) {
   return trimmed;
 }
 
+let pendingCsvExpenses = [];
+let pendingCsvIncome = [];
+
 document.getElementById("csv-file").addEventListener("change", (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -900,9 +903,8 @@ document.getElementById("csv-file").addEventListener("change", (e) => {
     let rows = parseCSV(reader.result).filter((r) => r.length >= 5 && r[0]);
     if (rows.length && isNaN(Date.parse(rows[0][0]))) rows = rows.slice(1);
 
-    const newExpenses = [];
-    const newIncome = [];
-    const categoryCounts = {};
+    pendingCsvExpenses = [];
+    pendingCsvIncome = [];
     let minDate = null, maxDate = null;
 
     rows.forEach((r) => {
@@ -918,46 +920,82 @@ document.getElementById("csv-file").addEventListener("change", (e) => {
       if (!maxDate || dateStr > maxDate) maxDate = dateStr;
 
       if (rawAmount > 0) {
-        newIncome.push({ id: uid(), date: dateStr, type: "other", amount, note: note || "Imported" });
+        pendingCsvIncome.push({ date: dateStr, amount, note: note || "Imported" });
       } else {
-        const category = mapCsvCategory(r[3]);
-        categoryCounts[category] = (categoryCounts[category] || 0) + 1;
-        newExpenses.push({ id: uid(), date: dateStr, amount, category, note });
+        const rawCategory = (r[3] || "").trim();
+        pendingCsvExpenses.push({ date: dateStr, amount, note, rawCategory, mapped: mapCsvCategory(r[3]) });
       }
     });
 
-    if (!newExpenses.length && !newIncome.length) {
+    if (!pendingCsvExpenses.length && !pendingCsvIncome.length) {
       alert("Couldn't find any valid rows in that file.");
       e.target.value = "";
       return;
     }
 
-    const summary = Object.entries(categoryCounts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([cat, count]) => `  ${cat}: ${count}`)
-      .join("\n");
-
-    const confirmed = confirm(
-      `Import ${newExpenses.length} expenses and ${newIncome.length} income entries?\n` +
-      `Date range: ${minDate} to ${maxDate}\n\n` +
-      `Categories:\n${summary}\n\n` +
-      `This adds to your existing data — it won't replace anything.`
-    );
-    if (!confirmed) {
-      e.target.value = "";
-      return;
-    }
-
-    newExpenses.forEach((x) => {
-      ensureCategoryColor(x.category);
-      store.expenses.push(x);
-    });
-    newIncome.forEach((x) => store.income.push(x));
-    saveStore();
-    renderAll();
-    e.target.value = "";
+    renderCsvReview(minDate, maxDate);
   };
   reader.readAsText(file);
+});
+
+function renderCsvReview(minDate, maxDate) {
+  const groups = {};
+  pendingCsvExpenses.forEach((x) => {
+    const key = x.rawCategory || "(blank)";
+    if (!groups[key]) groups[key] = { count: 0, suggested: x.mapped };
+    groups[key].count++;
+  });
+
+  document.getElementById("csv-review-summary").textContent =
+    `${pendingCsvExpenses.length} expenses, ${pendingCsvIncome.length} income entries · ${minDate} to ${maxDate}`;
+
+  const allCategoryOptions = [...new Set([...CURATED_CATEGORIES, "Uncategorized", ...Object.values(groups).map((g) => g.suggested)])];
+
+  const list = document.getElementById("csv-review-list");
+  list.innerHTML = Object.entries(groups)
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([raw, g]) => `
+      <div class="csv-review-row">
+        <div class="csv-review-raw">${raw} <span class="csv-review-count">(${g.count})</span></div>
+        <select class="csv-review-select" data-raw="${raw}">
+          ${allCategoryOptions.map((cat) => `<option value="${cat}" ${cat === g.suggested ? "selected" : ""}>${cat}</option>`).join("")}
+        </select>
+      </div>
+    `).join("");
+
+  document.getElementById("csv-review").hidden = false;
+}
+
+document.getElementById("csv-review-cancel").addEventListener("click", () => {
+  pendingCsvExpenses = [];
+  pendingCsvIncome = [];
+  document.getElementById("csv-review").hidden = true;
+  document.getElementById("csv-file").value = "";
+});
+
+document.getElementById("csv-review-confirm").addEventListener("click", () => {
+  const overrides = {};
+  document.querySelectorAll(".csv-review-select").forEach((sel) => {
+    overrides[sel.dataset.raw] = sel.value;
+  });
+
+  pendingCsvExpenses.forEach((x) => {
+    const key = x.rawCategory || "(blank)";
+    const category = overrides[key] || x.mapped;
+    ensureCategoryColor(category);
+    store.expenses.push({ id: uid(), date: x.date, amount: x.amount, category, note: x.note });
+  });
+  pendingCsvIncome.forEach((x) => {
+    store.income.push({ id: uid(), date: x.date, type: "other", amount: x.amount, note: x.note });
+  });
+
+  saveStore();
+  renderAll();
+
+  pendingCsvExpenses = [];
+  pendingCsvIncome = [];
+  document.getElementById("csv-review").hidden = true;
+  document.getElementById("csv-file").value = "";
 });
 
 // ---------- privacy toggle ----------

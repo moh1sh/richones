@@ -298,6 +298,70 @@ body {
 
 .export-import-row > * { flex: 1; text-align: center; }
 
+.csv-review { margin-top: 16px; }
+
+.csv-review-summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.csv-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+  margin: 10px 0 14px;
+}
+
+.csv-review-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+}
+
+.csv-review-raw {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.csv-review-count {
+  font-weight: 400;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.csv-review-select {
+  font-size: 13px;
+  font-family: inherit;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  flex-shrink: 0;
+  max-width: 150px;
+}
+
+.csv-review-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.csv-review-actions > * { flex: 1; }
+
 .row-delete {
   background: none;
   border: none;
