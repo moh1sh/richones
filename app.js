@@ -167,6 +167,9 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
     document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById("view-" + btn.dataset.view).classList.add("active");
+    // Values were sized while this tab was display:none (clientWidth reads 0 then),
+    // so the shrink-to-fit never actually ran. Re-measure now that it's visible.
+    fitAllValueText();
   });
 });
 
@@ -205,6 +208,7 @@ const CATEGORY_COLORS = {
   Transport: "#a855f7",
   Habits: "#eab308",
   "Credit Card": "#06b6d4",
+  Office: "#475569",
 };
 const FALLBACK_COLOR = "#9ca3af";
 
@@ -244,6 +248,7 @@ const CATEGORY_ICONS = {
   Transport: '<path d="M4 16V10a2 2 0 0 1 2-2h3l2-3h2l2 3h3a2 2 0 0 1 2 2v6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="7.5" cy="18" r="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16.5" cy="18" r="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>',
   Habits: '<path d="M17 2l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 6H8a5 5 0 0 0-5 5v1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 22l-4-4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 18h13a5 5 0 0 0 5-5v-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   "Credit Card": '<rect x="2.5" y="5.5" width="19" height="13" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 9.5h19" stroke="currentColor" stroke-width="1.6"/><path d="M6 15h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  Office: '<rect x="3" y="7" width="18" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8.5 7V5.3a1.8 1.8 0 0 1 1.8-1.8h3.4a1.8 1.8 0 0 1 1.8 1.8V7" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M3 12.5h18" stroke="currentColor" stroke-width="1.6"/>',
 };
 
 function categoryIconSvg(name) {
@@ -626,6 +631,7 @@ function renderExpenses() {
     const color = CATEGORY_COLORS[x.category] || FALLBACK_COLOR;
     const row = document.createElement("div");
     row.className = "txn-row";
+    row.dataset.id = x.id;
     row.innerHTML = `
       <span class="txn-dot" style="background:${color}"></span>
       <div class="txn-main">
@@ -633,6 +639,9 @@ function renderExpenses() {
         <div class="txn-sub">${x.note ? x.note + " · " : ""}${x.date}</div>
       </div>
       <div class="txn-amount negative">${fmtMoney(x.amount)}</div>
+      <button class="txn-edit-btn" data-id="${x.id}" aria-label="Edit">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      </button>
       <button class="txn-delete" data-id="${x.id}" aria-label="Delete">×</button>
     `;
     list.appendChild(row);
@@ -643,7 +652,50 @@ function renderExpenses() {
   list.querySelectorAll(".txn-editable").forEach((el) => {
     el.addEventListener("click", () => openCategoryEditor(el));
   });
+  list.querySelectorAll(".txn-edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openExpenseEditor(btn.closest(".txn-row"), btn.dataset.id));
+  });
   fitAllValueText();
+}
+
+function openExpenseEditor(rowEl, id) {
+  const expense = store.expenses.find((x) => x.id === id);
+  if (!expense) return;
+
+  const categoryOptions = Object.keys(CATEGORY_COLORS)
+    .map((c) => `<option value="${c}" ${c === expense.category ? "selected" : ""}>${c}</option>`)
+    .join("");
+
+  rowEl.innerHTML = `
+    <div class="txn-edit-form">
+      <div class="txn-edit-grid">
+        <input type="date" class="txn-edit-date" value="${expense.date}">
+        <input type="number" class="txn-edit-amount" value="${expense.amount}" step="1" min="1">
+      </div>
+      <select class="txn-edit-category">${categoryOptions}</select>
+      <input type="text" class="txn-edit-note" value="${expense.note || ""}" placeholder="Note (optional)">
+      <div class="txn-edit-actions">
+        <button type="button" class="btn-secondary txn-edit-cancel">Cancel</button>
+        <button type="button" class="btn-primary txn-edit-save">Save</button>
+      </div>
+    </div>
+  `;
+
+  rowEl.querySelector(".txn-edit-cancel").addEventListener("click", () => renderExpenses());
+  rowEl.querySelector(".txn-edit-save").addEventListener("click", () => {
+    const date = rowEl.querySelector(".txn-edit-date").value;
+    const amount = Math.round(parseFloat(rowEl.querySelector(".txn-edit-amount").value));
+    const category = rowEl.querySelector(".txn-edit-category").value;
+    const note = rowEl.querySelector(".txn-edit-note").value.trim();
+    if (!date || isNaN(amount) || amount <= 0) return;
+
+    expense.date = date;
+    expense.amount = amount;
+    expense.category = category;
+    expense.note = note;
+    saveStore();
+    renderAll();
+  });
 }
 
 function openCategoryEditor(titleEl) {
@@ -932,17 +984,87 @@ function renderRecurring() {
     const overdue = next <= todayStr();
     const row = document.createElement("div");
     row.className = "balance-row";
+    row.dataset.id = rule.id;
     row.innerHTML = `
       <div>
         <div class="balance-person">${rule.name} <span class="badge ${rule.kind === "emi" ? "emi" : ""}">${rule.kind === "emi" ? "EMI" : rule.subtype}</span></div>
         <div class="balance-sub">${fmtMoney(rule.amount)} · ${rule.day === "end" ? "end" : "start"} of month · ${overdue ? "posts on next visit" : "next: " + next}</div>
       </div>
-      <button class="row-delete" data-id="${rule.id}">Delete</button>
+      <div class="recurring-row-actions">
+        <button class="txn-edit-btn" data-id="${rule.id}" aria-label="Edit">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        </button>
+        <button class="row-delete" data-id="${rule.id}">Delete</button>
+      </div>
     `;
     list.appendChild(row);
   });
   list.querySelectorAll(".row-delete").forEach((btn) => {
     btn.addEventListener("click", () => deleteRecurring(btn.dataset.id));
+  });
+  list.querySelectorAll(".txn-edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openRecurringEditor(btn.closest(".balance-row"), btn.dataset.id));
+  });
+}
+
+function openRecurringEditor(rowEl, id) {
+  const rule = store.recurring.find((r) => r.id === id);
+  if (!rule) return;
+
+  rowEl.innerHTML = `
+    <div class="txn-edit-form">
+      <input type="text" class="rec-edit-name" value="${rule.name}" placeholder="Name">
+      <div class="txn-edit-grid">
+        <select class="rec-edit-kind">
+          <option value="income" ${rule.kind === "income" ? "selected" : ""}>Income</option>
+          <option value="emi" ${rule.kind === "emi" ? "selected" : ""}>EMI / Loan payment</option>
+        </select>
+        <select class="rec-edit-subtype" ${rule.kind === "income" ? "" : "hidden"}>
+          <option value="salary" ${rule.subtype === "salary" ? "selected" : ""}>Salary</option>
+          <option value="interest" ${rule.subtype === "interest" ? "selected" : ""}>Interest</option>
+          <option value="business" ${rule.subtype === "business" ? "selected" : ""}>Business</option>
+          <option value="other" ${rule.subtype === "other" ? "selected" : ""}>Other</option>
+        </select>
+      </div>
+      <div class="txn-edit-grid">
+        <input type="number" class="rec-edit-amount" value="${rule.amount}" step="1" min="0">
+        <select class="rec-edit-day">
+          <option value="start" ${rule.day === "start" ? "selected" : ""}>Start of month</option>
+          <option value="end" ${rule.day === "end" ? "selected" : ""}>End of month</option>
+        </select>
+      </div>
+      <input type="month" class="rec-edit-start" value="${rule.startMonth}">
+      <div class="txn-edit-actions">
+        <button type="button" class="btn-secondary rec-edit-cancel">Cancel</button>
+        <button type="button" class="btn-primary rec-edit-save">Save</button>
+      </div>
+    </div>
+  `;
+
+  const kindSelect = rowEl.querySelector(".rec-edit-kind");
+  const subtypeSelect = rowEl.querySelector(".rec-edit-subtype");
+  kindSelect.addEventListener("change", () => {
+    subtypeSelect.hidden = kindSelect.value !== "income";
+  });
+
+  rowEl.querySelector(".rec-edit-cancel").addEventListener("click", () => renderRecurring());
+  rowEl.querySelector(".rec-edit-save").addEventListener("click", () => {
+    const name = rowEl.querySelector(".rec-edit-name").value.trim();
+    const kind = kindSelect.value;
+    const amount = Math.round(parseFloat(rowEl.querySelector(".rec-edit-amount").value));
+    const day = rowEl.querySelector(".rec-edit-day").value;
+    const startMonth = rowEl.querySelector(".rec-edit-start").value;
+    if (!name || isNaN(amount) || !startMonth) return;
+
+    rule.name = name;
+    rule.kind = kind;
+    rule.subtype = kind === "income" ? subtypeSelect.value : undefined;
+    rule.amount = amount;
+    rule.day = day;
+    rule.startMonth = startMonth;
+    saveStore();
+    runRecurringEngine();
+    renderAll();
   });
 }
 
@@ -1066,6 +1188,7 @@ const CSV_CATEGORY_RULES = [
   { match: /health|medical|doctor|pharmac|\bgym\b|fitness/i, category: "Health" },
   { match: /utilit|\bbill\b|electric|water|internet|recharge|phone/i, category: "Utilities" },
   { match: /habit|subscription|hobby/i, category: "Habits" },
+  { match: /\boffice\b|\bwork\b|stationery/i, category: "Office" },
 ];
 
 function mapCsvCategory(raw) {

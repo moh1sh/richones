@@ -723,6 +723,13 @@ body {
   border-radius: 8px;
 }
 
+.recurring-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .balance-person { font-weight: 600; font-size: 14px; }
 
 .balance-amount { font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -786,6 +793,55 @@ body {
   padding: 2px 4px;
   max-width: 100%;
   font-family: inherit;
+}
+
+.txn-edit-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  padding: 4px 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.txn-edit-btn:hover { color: var(--accent); }
+
+.txn-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.txn-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.txn-edit-form input,
+.txn-edit-form select {
+  font-size: 14px;
+  font-family: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  width: 100%;
+}
+
+.txn-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.txn-edit-actions > * {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 13px;
 }
 
 .txn-sub {
