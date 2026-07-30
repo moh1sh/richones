@@ -314,6 +314,34 @@ body {
   margin-bottom: 4px;
 }
 
+.csv-mode-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.csv-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.csv-mode-option input { margin-top: 2px; flex-shrink: 0; }
+.csv-mode-option strong { color: var(--text); }
+
+.csv-mode-option:has(input:checked) {
+  border-color: var(--accent);
+  background: #eef1fd;
+}
+
 .csv-review-list {
   display: flex;
   flex-direction: column;

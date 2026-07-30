@@ -1219,15 +1219,19 @@ document.getElementById("csv-file").addEventListener("change", (e) => {
     pendingCsvExpenses = [];
     pendingCsvIncome = [];
     let minDate = null, maxDate = null;
-    let duplicateCount = 0;
+    let withinFileDuplicates = 0;
+    let matchesExisting = 0;
 
-    // Seed with signatures of everything already in the app, so re-importing
-    // the same file (or a file that overlaps with entries already added by
-    // hand) doesn't create duplicates. Also catches duplicate rows within
-    // the file itself.
-    const seen = new Set();
-    store.expenses.forEach((x) => seen.add(transactionSignature(x.date, x.amount, x.note)));
-    store.income.forEach((x) => seen.add(transactionSignature(x.date, x.amount, x.note)));
+    // Signatures already in the app — used to flag (not drop) rows that
+    // look like they already exist, since whether that matters depends on
+    // whether the user picks Add or Replace mode at review time.
+    const existingSigs = new Set();
+    store.expenses.forEach((x) => existingSigs.add(transactionSignature(x.date, x.amount, x.note)));
+    store.income.forEach((x) => existingSigs.add(transactionSignature(x.date, x.amount, x.note)));
+
+    // Tracks signatures seen so far in THIS file — literal repeats within
+    // the same file are always dropped regardless of mode.
+    const seenInFile = new Set();
 
     rows.forEach((r) => {
       const d = new Date(r[0]);
@@ -1239,37 +1243,39 @@ document.getElementById("csv-file").addEventListener("change", (e) => {
       const note = (r[6] || "").trim();
 
       const sig = transactionSignature(dateStr, amount, note);
-      if (seen.has(sig)) {
-        duplicateCount++;
+      if (seenInFile.has(sig)) {
+        withinFileDuplicates++;
         return;
       }
-      seen.add(sig);
+      seenInFile.add(sig);
+      const isDuplicateOfExisting = existingSigs.has(sig);
+      if (isDuplicateOfExisting) matchesExisting++;
 
       if (!minDate || dateStr < minDate) minDate = dateStr;
       if (!maxDate || dateStr > maxDate) maxDate = dateStr;
 
       if (rawAmount > 0) {
-        pendingCsvIncome.push({ date: dateStr, amount, note: note || "Imported" });
+        pendingCsvIncome.push({ date: dateStr, amount, note: note || "Imported", isDuplicateOfExisting });
       } else {
         const rawCategory = (r[3] || "").trim();
-        pendingCsvExpenses.push({ date: dateStr, amount, note, rawCategory, mapped: mapCsvCategory(r[3]) });
+        pendingCsvExpenses.push({ date: dateStr, amount, note, rawCategory, mapped: mapCsvCategory(r[3]), isDuplicateOfExisting });
       }
     });
 
     if (!pendingCsvExpenses.length && !pendingCsvIncome.length) {
-      alert(duplicateCount
-        ? `All ${duplicateCount} rows in that file already match entries you have — nothing new to import.`
+      alert(withinFileDuplicates
+        ? "Every row in that file is a repeat of another row in the same file — nothing to import."
         : "Couldn't find any valid rows in that file.");
       e.target.value = "";
       return;
     }
 
-    renderCsvReview(minDate, maxDate, duplicateCount);
+    renderCsvReview(minDate, maxDate, withinFileDuplicates, matchesExisting);
   };
   reader.readAsText(file);
 });
 
-function renderCsvReview(minDate, maxDate, duplicateCount) {
+function renderCsvReview(minDate, maxDate, withinFileDuplicates, matchesExisting) {
   const groups = {};
   pendingCsvExpenses.forEach((x) => {
     const key = x.rawCategory || "(blank)";
@@ -1277,11 +1283,12 @@ function renderCsvReview(minDate, maxDate, duplicateCount) {
     groups[key].count++;
   });
 
-  const dupNote = duplicateCount
-    ? ` · ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"} skipped (already in your data)`
-    : "";
+  let note = "";
+  if (withinFileDuplicates) note += ` · ${withinFileDuplicates} repeat row${withinFileDuplicates === 1 ? "" : "s"} within the file skipped`;
+  if (matchesExisting) note += ` · ${matchesExisting} row${matchesExisting === 1 ? "" : "s"} match data you already have`;
+
   document.getElementById("csv-review-summary").textContent =
-    `${pendingCsvExpenses.length} expenses, ${pendingCsvIncome.length} income entries · ${minDate} to ${maxDate}${dupNote}`;
+    `${pendingCsvExpenses.length} expenses, ${pendingCsvIncome.length} income entries · ${minDate} to ${maxDate}${note}`;
 
   const allCategoryOptions = [...new Set([...CURATED_CATEGORIES, "Uncategorized", ...Object.values(groups).map((g) => g.suggested)])];
 
@@ -1297,6 +1304,7 @@ function renderCsvReview(minDate, maxDate, duplicateCount) {
       </div>
     `).join("");
 
+  document.querySelector('input[name="csv-mode"][value="replace"]').checked = true;
   document.getElementById("csv-review").hidden = false;
 }
 
@@ -1308,20 +1316,36 @@ document.getElementById("csv-review-cancel").addEventListener("click", () => {
 });
 
 document.getElementById("csv-review-confirm").addEventListener("click", () => {
+  const mode = document.querySelector('input[name="csv-mode"]:checked').value;
   const overrides = {};
   document.querySelectorAll(".csv-review-select").forEach((sel) => {
     overrides[sel.dataset.raw] = sel.value;
   });
 
-  pendingCsvExpenses.forEach((x) => {
-    const key = x.rawCategory || "(blank)";
-    const category = overrides[key] || x.mapped;
-    ensureCategoryColor(category);
-    store.expenses.push({ id: uid(), date: x.date, amount: x.amount, category, note: x.note });
-  });
-  pendingCsvIncome.forEach((x) => {
-    store.income.push({ id: uid(), date: x.date, type: "other", amount: x.amount, note: x.note });
-  });
+  if (mode === "replace") {
+    const existingCount = store.expenses.length;
+    const confirmed = confirm(
+      `This deletes all ${existingCount} expense${existingCount === 1 ? "" : "s"} currently in the app and replaces ` +
+      `them with the ${pendingCsvExpenses.length} in this file. This can't be undone. Continue?`
+    );
+    if (!confirmed) return;
+    store.expenses = [];
+  }
+
+  pendingCsvExpenses
+    .filter((x) => mode === "replace" || !x.isDuplicateOfExisting)
+    .forEach((x) => {
+      const key = x.rawCategory || "(blank)";
+      const category = overrides[key] || x.mapped;
+      ensureCategoryColor(category);
+      store.expenses.push({ id: uid(), date: x.date, amount: x.amount, category, note: x.note });
+    });
+
+  pendingCsvIncome
+    .filter((x) => !x.isDuplicateOfExisting)
+    .forEach((x) => {
+      store.income.push({ id: uid(), date: x.date, type: "other", amount: x.amount, note: x.note });
+    });
 
   saveStore();
   renderAll();

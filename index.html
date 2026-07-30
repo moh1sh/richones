@@ -309,6 +309,18 @@
 
       <div id="csv-review" class="csv-review" hidden>
         <div class="csv-review-summary" id="csv-review-summary"></div>
+
+        <div class="csv-mode-group">
+          <label class="csv-mode-option">
+            <input type="radio" name="csv-mode" value="replace" checked>
+            <span><strong>Replace</strong> — delete all existing expenses, keep only what's in this file</span>
+          </label>
+          <label class="csv-mode-option">
+            <input type="radio" name="csv-mode" value="add">
+            <span><strong>Add</strong> — keep existing expenses, only add new ones from this file</span>
+          </label>
+        </div>
+
         <p class="hint">Check the mapping for each category below — fix anything that looks wrong before importing.</p>
         <div class="csv-review-list" id="csv-review-list"></div>
         <div class="csv-review-actions">
