@@ -357,6 +357,156 @@ function renderTrend(expenses) {
     `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}</svg>`;
 }
 
+function lastNMonths(n) {
+  const months = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      period: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      label: d.toLocaleDateString(undefined, { month: "short" }),
+      total: 0,
+    });
+  }
+  return months;
+}
+
+function renderMonthlyTrend(expenses) {
+  const months = lastNMonths(6);
+  expenses.forEach((x) => {
+    const m = months.find((mo) => mo.period === periodOf(x.date));
+    if (m) m.total += x.amount;
+  });
+
+  const container = document.getElementById("monthly-trend-chart");
+  const windowTotal = months.reduce((s, m) => s + m.total, 0);
+  if (windowTotal === 0) {
+    container.innerHTML = '<div class="trend-empty">No expenses in the last 6 months</div>';
+    return;
+  }
+
+  const w = 320, h = 130, gap = 10, labelH = 16;
+  const max = Math.max(1, ...months.map((m) => m.total));
+  const barW = (w - gap * (months.length - 1)) / months.length;
+
+  const bars = months.map((m, i) => {
+    const bh = (m.total / max) * (h - labelH - 6);
+    const x = i * (barW + gap);
+    const y = h - labelH - bh;
+    return `
+      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(bh, 1).toFixed(1)}" rx="4" fill="var(--accent)"><title>${m.label}: ${fmtMoney(m.total)}</title></rect>
+      <text x="${(x + barW / 2).toFixed(1)}" y="${h - 3}" text-anchor="middle" font-size="10" fill="var(--text-dim)">${m.label}</text>`;
+  }).join("");
+
+  container.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="140">${bars}</svg>`;
+}
+
+function renderSpendHeatmap(expenses) {
+  const weeks = 12;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysBack = (weeks - 1) * 7 + today.getDay();
+  const start = new Date(today);
+  start.setDate(start.getDate() - daysBack);
+
+  const byDate = {};
+  expenses.forEach((x) => { byDate[x.date] = (byDate[x.date] || 0) + x.amount; });
+
+  const days = [];
+  let max = 1;
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const future = d > today;
+    const total = future ? null : (byDate[dateStr] || 0);
+    if (total !== null && total > max) max = total;
+    days.push({ date: dateStr, total, dow: d.getDay(), week: Math.floor(i / 7), future });
+  }
+
+  const levelColor = (total) => {
+    if (total === null) return "transparent";
+    if (total <= 0) return "#e7e9f2";
+    const ratio = total / max;
+    if (ratio > 0.75) return "#1d3fd6";
+    if (ratio > 0.5) return "#4361ee";
+    if (ratio > 0.25) return "#7c93f5";
+    return "#b8c4fa";
+  };
+
+  const cells = days.map((d) => {
+    const style = `grid-column:${d.week + 1};grid-row:${d.dow + 1};background:${levelColor(d.total)}`;
+    const tooltip = d.future ? "" : ` title="${d.date}: ${fmtMoney(d.total)}"`;
+    return `<div class="heatmap-cell" style="${style}"${tooltip}></div>`;
+  }).join("");
+
+  document.getElementById("spend-heatmap").innerHTML =
+    `<div class="heatmap-grid" style="grid-template-columns: repeat(${weeks}, 1fr);">${cells}</div>`;
+}
+
+function renderCategoryTrend(expenses) {
+  const select = document.getElementById("category-trend-select");
+  const cats = [...new Set(expenses.map((x) => x.category))].sort();
+
+  if (!cats.length) {
+    select.innerHTML = "";
+    document.getElementById("category-trend-chart").innerHTML =
+      '<div class="trend-empty">No expenses yet</div>';
+    return;
+  }
+
+  const byCatTotal = {};
+  expenses.forEach((x) => { byCatTotal[x.category] = (byCatTotal[x.category] || 0) + x.amount; });
+  const defaultCat = Object.entries(byCatTotal).sort((a, b) => b[1] - a[1])[0][0];
+  const chosen = cats.includes(select.value) ? select.value : defaultCat;
+
+  select.innerHTML = cats.map((c) => `<option value="${c}" ${c === chosen ? "selected" : ""}>${c}</option>`).join("");
+  drawCategoryTrendChart(expenses, chosen);
+}
+
+function drawCategoryTrendChart(expenses, category) {
+  const months = lastNMonths(6);
+  expenses.filter((x) => x.category === category).forEach((x) => {
+    const m = months.find((mo) => mo.period === periodOf(x.date));
+    if (m) m.total += x.amount;
+  });
+
+  const container = document.getElementById("category-trend-chart");
+  const windowTotal = months.reduce((s, m) => s + m.total, 0);
+  if (windowTotal === 0) {
+    container.innerHTML = `<div class="trend-empty">No ${category} expenses in the last 6 months</div>`;
+    return;
+  }
+
+  const w = 320, h = 120, padX = 12, padY = 16;
+  const max = Math.max(1, ...months.map((m) => m.total));
+  const stepX = (w - padX * 2) / (months.length - 1);
+  const color = CATEGORY_COLORS[category] || FALLBACK_COLOR;
+
+  const points = months.map((m, i) => ({
+    x: padX + i * stepX,
+    y: h - padY - (m.total / max) * (h - padY * 2 - 8),
+    m,
+  }));
+
+  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const dots = points.map((p) =>
+    `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${color}"><title>${p.m.label}: ${fmtMoney(p.m.total)}</title></circle>`
+  ).join("");
+  const labels = points.map((p) =>
+    `<text x="${p.x.toFixed(1)}" y="${h - 1}" text-anchor="middle" font-size="10" fill="var(--text-dim)">${p.m.label}</text>`
+  ).join("");
+
+  container.innerHTML = `<svg viewBox="0 0 ${w} ${h}" width="100%" height="130">
+    <path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}${labels}
+  </svg>`;
+}
+
+document.getElementById("category-trend-select").addEventListener("change", (e) => {
+  drawCategoryTrendChart(store.expenses, e.target.value);
+});
+
 // ---------- expenses: category grid + quick add ----------
 
 let quickCategory = CURATED_CATEGORIES[0];
@@ -464,6 +614,9 @@ function renderExpenses() {
   renderDonut(monthByCat);
   renderMiniTrend(expenses);
   renderTrend(expenses);
+  renderMonthlyTrend(expenses);
+  renderSpendHeatmap(expenses);
+  renderCategoryTrend(expenses);
 
   const list = document.getElementById("expense-tbody");
   list.innerHTML = "";

@@ -65,7 +65,14 @@ body {
 .privacy-mode .balance-summary-value,
 .privacy-mode .home-month-total,
 .privacy-mode .month-stat-value,
-.privacy-mode .txn-amount {
+.privacy-mode .txn-amount,
+.privacy-mode .donut-wrap,
+.privacy-mode .legend,
+.privacy-mode .mini-trend-chart,
+.privacy-mode .trend-chart,
+.privacy-mode .monthly-trend-chart,
+.privacy-mode .spend-heatmap,
+.privacy-mode .category-trend-chart {
   filter: blur(7px);
   user-select: none;
 }
@@ -644,6 +651,35 @@ body {
   font-size: 13px;
   text-align: center;
 }
+
+.monthly-trend-chart svg { display: block; width: 100%; height: 140px; }
+
+.category-trend-chart svg { display: block; width: 100%; height: 130px; }
+
+.category-select {
+  width: 100%;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--input-bg);
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.spend-heatmap { width: 100%; }
+
+.heatmap-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  width: 100%;
+  height: 130px;
+}
+
+.heatmap-cell { border-radius: 3px; }
 
 .form-inline {
   display: grid;
