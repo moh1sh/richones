@@ -300,37 +300,6 @@
     </section>
 
     <section class="panel">
-      <h2>Import historical expenses (CSV)</h2>
-      <p class="hint">Bring in expenses from another app's export. Read entirely on this device — nothing is uploaded. You'll get to review and fix every category mapping before anything is added.</p>
-      <div class="export-import-row">
-        <label class="btn-secondary" for="csv-file">Choose CSV file</label>
-        <input type="file" id="csv-file" accept=".csv,text/csv" hidden>
-      </div>
-
-      <div id="csv-review" class="csv-review" hidden>
-        <div class="csv-review-summary" id="csv-review-summary"></div>
-
-        <div class="csv-mode-group">
-          <label class="csv-mode-option">
-            <input type="radio" name="csv-mode" value="replace" checked>
-            <span><strong>Replace</strong> — delete all existing expenses, keep only what's in this file</span>
-          </label>
-          <label class="csv-mode-option">
-            <input type="radio" name="csv-mode" value="add">
-            <span><strong>Add</strong> — keep existing expenses, only add new ones from this file</span>
-          </label>
-        </div>
-
-        <p class="hint">Check the mapping for each category below — fix anything that looks wrong before importing.</p>
-        <div class="csv-review-list" id="csv-review-list"></div>
-        <div class="csv-review-actions">
-          <button type="button" class="btn-secondary" id="csv-review-cancel">Cancel</button>
-          <button type="button" class="btn-primary" id="csv-review-confirm">Import</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel">
       <h2>Backup &amp; transfer</h2>
       <p class="hint">Move your data to another device (like your phone) or back it up somewhere safe. Nothing is uploaded — the file is generated and read entirely on this device.</p>
       <div class="export-import-row">
