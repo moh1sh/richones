@@ -532,20 +532,12 @@ let noteHistoryMap = {};
 
 function updateNoteHistory(sortedDescExpenses) {
   noteHistoryMap = {};
-  const seen = new Set();
-  const notes = [];
   sortedDescExpenses.forEach((x) => {
     const trimmed = (x.note || "").trim();
     if (!trimmed) return;
     const key = trimmed.toLowerCase();
     if (!(key in noteHistoryMap)) noteHistoryMap[key] = x.category;
-    if (!seen.has(key)) {
-      seen.add(key);
-      notes.push(trimmed);
-    }
   });
-  document.getElementById("note-history").innerHTML =
-    notes.slice(0, 50).map((n) => `<option value="${n}"></option>`).join("");
 }
 
 document.getElementById("exp-note").addEventListener("input", (e) => {
