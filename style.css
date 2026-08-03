@@ -911,7 +911,7 @@ body {
   text-overflow: ellipsis;
 }
 
-.toast.show { opacity: 1; }
+.toast.show { opacity: 1; pointer-events: auto; cursor: pointer; }
 
 @media (prefers-reduced-motion: no-preference) {
   .toast {

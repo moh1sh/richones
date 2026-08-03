@@ -43,8 +43,13 @@ function showToast(message) {
   el.textContent = message;
   el.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 30000);
 }
+
+document.getElementById("toast").addEventListener("click", () => {
+  clearTimeout(toastTimer);
+  document.getElementById("toast").classList.remove("show");
+});
 
 // Shrinks a value's font-size just enough to fit on one line, however many
 // digits it has, instead of the browser wrapping mid-number. Falls back to
