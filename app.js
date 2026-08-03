@@ -37,6 +37,15 @@ function fmtMoney(n) {
   return sign + "₹" + Math.abs(rounded).toLocaleString("en-IN");
 }
 
+let toastTimer;
+function showToast(message) {
+  const el = document.getElementById("toast");
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+}
+
 // Shrinks a value's font-size just enough to fit on one line, however many
 // digits it has, instead of the browser wrapping mid-number. Falls back to
 // CSS overflow-wrap only if it can't fit even at the minimum size.
@@ -562,6 +571,7 @@ expenseForm.addEventListener("submit", (e) => {
   expenseConfirmBtn.disabled = true;
   expenseAmountInput.focus();
   renderExpenses();
+  showToast("Expense saved");
 });
 
 function deleteExpense(id) {
@@ -598,11 +608,17 @@ function renderExpenses() {
   renderSpendHeatmap(expenses);
   renderCategoryTrend(expenses);
 
-  const list = document.getElementById("expense-tbody");
-  list.innerHTML = "";
-  document.getElementById("expense-empty").style.display = expenses.length ? "none" : "block";
+  renderExpenseRows("expense-tbody", "expense-empty", expenses, 50);
+  renderExpenseRows("home-recent-tbody", "home-recent-empty", expenses, 5);
+  fitAllValueText();
+}
 
-  expenses.slice(0, 50).forEach((x) => {
+function renderExpenseRows(listId, emptyId, expenses, limit) {
+  const list = document.getElementById(listId);
+  list.innerHTML = "";
+  document.getElementById(emptyId).style.display = expenses.length ? "none" : "block";
+
+  expenses.slice(0, limit).forEach((x) => {
     const color = CATEGORY_COLORS[x.category] || FALLBACK_COLOR;
     const row = document.createElement("div");
     row.className = "txn-row";
@@ -630,7 +646,6 @@ function renderExpenses() {
   list.querySelectorAll(".txn-edit-btn").forEach((btn) => {
     btn.addEventListener("click", () => openExpenseEditor(btn.closest(".txn-row"), btn.dataset.id));
   });
-  fitAllValueText();
 }
 
 function openExpenseEditor(rowEl, id) {
