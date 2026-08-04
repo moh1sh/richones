@@ -41,9 +41,26 @@ let toastTimer;
 function showToast(message) {
   const el = document.getElementById("toast");
   el.textContent = message;
+  updateToastPosition();
   el.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove("show"), 30000);
+}
+
+// Keeps the toast above the iOS keyboard: fixed-position elements stay
+// pinned to the layout viewport, which the keyboard covers, so we track
+// the visual viewport (the part actually visible) and offset manually.
+function updateToastPosition() {
+  const el = document.getElementById("toast");
+  if (!window.visualViewport) return;
+  const vv = window.visualViewport;
+  const keyboardHeight = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  el.style.bottom = keyboardHeight > 60 ? (keyboardHeight + 12) + "px" : "";
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", updateToastPosition);
+  window.visualViewport.addEventListener("scroll", updateToastPosition);
 }
 
 document.getElementById("toast").addEventListener("click", () => {
