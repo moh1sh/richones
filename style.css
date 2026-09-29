@@ -22,6 +22,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Solid cover behind the iOS status bar so scrolling content never shows through it */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  background: var(--bg);
+  z-index: 50;
+  pointer-events: none;
+}
+
 .app {
   max-width: 480px;
   margin: 0 auto;
